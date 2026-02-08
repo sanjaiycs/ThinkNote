@@ -1,0 +1,62 @@
+@import "tailwindcss";
+
+@theme {
+  --color-gray-50: #1E1E20;
+  /* Darker background */
+  --color-gray-100: #2D2D2F;
+  /* Slightly lighter for panels */
+  --color-gray-200: #3C3C3E;
+  /* Borders */
+  --color-gray-300: #555555;
+  --color-gray-400: #777777;
+  --color-gray-500: #999999;
+  --color-gray-600: #B3B3B3;
+  --color-gray-700: #CCCCCC;
+  --color-gray-800: #E6E6E6;
+  --color-gray-900: #FFFFFF;
+  /* Text white */
+
+  --color-indigo-50: #1A1A1D;
+  /* Dark indigo background */
+  --color-indigo-100: #252528;
+  --color-indigo-200: #333336;
+  --color-indigo-300: #4A4A4F;
+  --color-indigo-400: #666670;
+  --color-indigo-500: #8E8EA0;
+  /* Desaturated indigo */
+  --color-indigo-600: #A0A0B0;
+  --color-indigo-700: #B8B8C8;
+
+  --radius-xl: 1rem;
+  --radius-2xl: 1.5rem;
+}
+
+@layer base {
+  body {
+    @apply bg-[#131314] text-gray-100 font-sans antialiased;
+  }
+}
+
+@layer utilities {
+  .bg-paper {
+    background-color: #1E1E20;
+  }
+
+  /* 3D Transform Utilities */
+  .perspective-1000 {
+    perspective: 1000px;
+  }
+
+  .transform-style-3d {
+    transform-style: preserve-3d;
+  }
+
+  .backface-hidden {
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+  }
+
+  .rotate-y-180 {
+    transform: rotateY(180deg);
+  }
+}
