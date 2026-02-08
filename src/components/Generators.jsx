@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Loader2, PlayCircle, Layers, CheckSquare } from 'lucide-react';
-import { generateFlashcards, generateQuiz } from '../lib/ollama';
+import { generateFlashcards, generateQuiz } from '../lib/ai';
 import useNoteStore from '../store/noteStore';
 
 const Generators = () => {
@@ -31,7 +31,7 @@ const Generators = () => {
             }
         } catch (e) {
             console.error(e);
-            alert("Generation failed");
+            alert("Generation failed: " + e.message);
         } finally {
             setLoading(null);
         }

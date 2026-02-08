@@ -7,7 +7,7 @@ import FlashcardView from './FlashcardView';
 import QuizView from './QuizView';
 import { PanelRightOpen, PanelRightClose, Loader2 } from 'lucide-react';
 import useNoteStore from '../store/noteStore';
-import { generateFlashcards, generateQuiz } from '../lib/ollama';
+import { generateFlashcards, generateQuiz } from '../lib/ai';
 
 const Layout = () => {
     const { currentNoteId, notes } = useNoteStore();

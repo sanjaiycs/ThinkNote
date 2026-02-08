@@ -1,26 +1,30 @@
-import React, { useState, useRef, useEffect } from 'react'; // Added React import
-import { Sparkles, MessageSquare, Mic, X, Send, Loader2 } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Sparkles, MessageSquare, Mic, X, Send, Loader2, Settings } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import useNoteStore from '../store/noteStore';
-import { summarizeNote, extractKeyPoints, suggestImprovements, chatWithNote, isAIConfigured, generateTags } from '../lib/ollama';
-// import Generators from './Generators';
+import useSettingsStore from '../store/settingsStore'; // Import settings store
+import { summarizeNote, extractKeyPoints, suggestImprovements, chatWithNote, generateTags } from '../lib/ai'; // Update import path
 
 const AIPanel = ({ isOpen, onClose }) => {
     const { notes, currentNoteId, updateNote } = useNoteStore();
+    const { provider, apiKey } = useSettingsStore(); // Get settings
     const currentNote = notes.find((n) => n.id === currentNoteId);
     const [messages, setMessages] = useState([]);
     const [inputValue, setInputValue] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const messagesEndRef = useRef(null);
-    const [apiKeyMissing, setApiKeyMissing] = useState(false);
+    const [configError, setConfigError] = useState(null);
 
+    // Check configuration
     useEffect(() => {
-        try {
-            setApiKeyMissing(!isAIConfigured());
-        } catch (e) {
-            console.error("Error checking AI configuration:", e);
+        if (isOpen) {
+            if (provider === 'gemini' && !apiKey) {
+                setConfigError("Gemini API Key is missing. Please configure it in Settings.");
+            } else {
+                setConfigError(null);
+            }
         }
-    }, []);
+    }, [isOpen, provider, apiKey]);
 
     useEffect(() => {
         if (currentNote) {
@@ -39,12 +43,11 @@ const AIPanel = ({ isOpen, onClose }) => {
 
     const handleAction = async (actionType) => {
         if (!currentNote) return;
-        // Ollama usually requires no API key, or we assume it's configured.
+        if (configError) return;
 
         setIsLoading(true);
         let result = '';
 
-        // Add a temporary user message or system status to show what we are doing
         const actionLabels = {
             summarize: "Summarize this note",
             keypoints: "Extract key points",
@@ -63,8 +66,6 @@ const AIPanel = ({ isOpen, onClose }) => {
                 result = await suggestImprovements(currentNote.content);
             } else if (actionType === 'tags') {
                 const tags = await generateTags(currentNote.content);
-                // Display tags in chat and add to note
-                // Ensure unique tags
                 const uniqueTags = [...new Set([...(currentNote.tags || []), ...tags])];
                 updateNote(currentNoteId, { tags: uniqueTags });
                 result = `I've generated and added the following tags to your note:\n\n${tags.map(t => `\`${t}\``).join(' ')}`;
@@ -72,7 +73,7 @@ const AIPanel = ({ isOpen, onClose }) => {
 
             setMessages(prev => [...prev, { role: 'model', content: result }]);
         } catch (error) {
-            setMessages(prev => [...prev, { role: 'model', content: "Sorry, I encountered an error. Please check your API key and try again." }]);
+            setMessages(prev => [...prev, { role: 'model', content: `Error: ${error.message}. Please check your AI Settings.` }]);
         } finally {
             setIsLoading(false);
         }
@@ -81,6 +82,10 @@ const AIPanel = ({ isOpen, onClose }) => {
     const handleSendMessage = async (e) => {
         e.preventDefault();
         if (!inputValue.trim() || !currentNote) return;
+        if (configError) {
+            setMessages(prev => [...prev, { role: 'model', content: configError }]);
+            return;
+        }
 
         const userMsg = inputValue;
         setInputValue('');
@@ -93,7 +98,7 @@ const AIPanel = ({ isOpen, onClose }) => {
             const response = await chatWithNote(currentNote.content, historyForApi, userMsg);
             setMessages(prev => [...prev, { role: 'model', content: response }]);
         } catch (error) {
-            setMessages(prev => [...prev, { role: 'model', content: "Sorry, I encountered an error processing your request." }]);
+            setMessages(prev => [...prev, { role: 'model', content: `Error: ${error.message}. Please check your AI Settings.` }]);
         } finally {
             setIsLoading(false);
         }
@@ -112,48 +117,52 @@ const AIPanel = ({ isOpen, onClose }) => {
             </div>
 
             <div className="flex-1 overflow-y-auto pt-4 px-4 space-y-4 custom-scrollbar">
+                {configError && (
+                    <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-sm text-red-200 flex gap-2">
+                        <Settings size={16} className="shrink-0 mt-0.5" />
+                        <span>{configError}</span>
+                    </div>
+                )}
+
                 {!currentNote ? (
                     <div className="text-center text-gray-500 mt-10">
                         <p>Select a note to start chatting.</p>
                     </div>
                 ) : (
                     <>
-                        {/* Quick Actions - styled for dark mode */}
                         <div className="bg-[#252528] p-3 rounded-xl border border-[#2D2D2F] shrink-0">
                             <p className="text-xs text-gray-400 mb-3 font-medium uppercase tracking-wider">Quick Prompts</p>
                             <div className="flex flex-wrap gap-2">
                                 <button
                                     onClick={() => handleAction('summarize')}
-                                    disabled={isLoading}
+                                    disabled={isLoading || !!configError}
                                     className="text-xs bg-[#2D2D2F] text-indigo-300 px-3 py-1.5 rounded-lg hover:bg-[#3C3C3E] border border-[#3C3C3E] transition-colors disabled:opacity-50"
                                 >
                                     Summarize
                                 </button>
                                 <button
                                     onClick={() => handleAction('keypoints')}
-                                    disabled={isLoading}
+                                    disabled={isLoading || !!configError}
                                     className="text-xs bg-[#2D2D2F] text-green-300 px-3 py-1.5 rounded-lg hover:bg-[#3C3C3E] border border-[#3C3C3E] transition-colors disabled:opacity-50"
                                 >
                                     Key Points
                                 </button>
                                 <button
                                     onClick={() => handleAction('suggestions')}
-                                    disabled={isLoading}
+                                    disabled={isLoading || !!configError}
                                     className="text-xs bg-[#2D2D2F] text-orange-300 px-3 py-1.5 rounded-lg hover:bg-[#3C3C3E] border border-[#3C3C3E] transition-colors disabled:opacity-50"
                                 >
                                     Critique
                                 </button>
                                 <button
                                     onClick={() => handleAction('tags')}
-                                    disabled={isLoading}
+                                    disabled={isLoading || !!configError}
                                     className="text-xs bg-[#2D2D2F] text-blue-300 px-3 py-1.5 rounded-lg hover:bg-[#3C3C3E] border border-[#3C3C3E] transition-colors disabled:opacity-50"
                                 >
                                     Auto Tag
                                 </button>
                             </div>
                         </div>
-
-                        {/* Generators removed - moved to Studio Panel */}
 
                         {messages.map((msg, idx) => (
                             <div key={idx} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
@@ -190,13 +199,13 @@ const AIPanel = ({ isOpen, onClose }) => {
                         type="text"
                         value={inputValue}
                         onChange={(e) => setInputValue(e.target.value)}
-                        placeholder="Ask anything..."
+                        placeholder={configError ? "Configure AI to chat..." : "Ask anything..."}
                         className="w-full pl-4 pr-10 py-3 bg-[#131314] border border-[#2D2D2F] rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 text-sm text-gray-200 placeholder-gray-600 disabled:opacity-50"
-                        disabled={!currentNote || isLoading}
+                        disabled={!currentNote || isLoading || !!configError}
                     />
                     <button
                         type="submit"
-                        disabled={!inputValue.trim() || isLoading}
+                        disabled={!inputValue.trim() || isLoading || !!configError}
                         className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-gray-500 hover:text-indigo-400 transition-colors disabled:text-gray-700"
                     >
                         {isLoading ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
